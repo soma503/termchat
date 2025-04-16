@@ -9,8 +9,7 @@ import (
 func main() {
 
 	s, err := server.NewServer(
-		server.WithHost("localhost"),
-		server.WithPort("9999"),
+		server.WithAddress("localhost:9999"),
 	)
 
 	if err != nil {
@@ -20,6 +19,6 @@ func main() {
 
 	fmt.Println("server creation was successful")
 
-	s.Start()
+	s.Run()
 
 }
