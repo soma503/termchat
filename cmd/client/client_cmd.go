@@ -7,5 +7,8 @@ import (
 
 func main() {
 	fmt.Println("OPENING CLIENT...")
-	client.Start()
+	c, _ := client.NewClient(
+		client.WithAddress("localhost:9999"),
+	)
+	c.Start()
 }
