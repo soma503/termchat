@@ -1,12 +1,24 @@
 package server
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 )
 
+//  TODO : create either CLI tool or some user interface for server start
+
 type option func(*TCPServer) error
+
+type TCPServer struct {
+	address  string
+	listener net.Listener
+	rw       *bufio.ReadWriter
+	conns    map[net.Conn]struct{}
+	mu       sync.Mutex
+}
 
 func WithAddress(address string) option {
 	return func(s *TCPServer) error {
@@ -28,15 +40,13 @@ func NewServer(opts ...option) (*TCPServer, error) {
 		}
 	}
 
+	s.conns = make(map[net.Conn]struct{})
+
 	return s, nil
 }
 
-type TCPServer struct {
-	address  string
-	listener net.Listener
-}
-
-// Starts the
+// Starts the TCPServer, listening for any connections given on the address
+// given by the server's configuration
 func (s *TCPServer) Run() {
 	var err error
 	s.listener, err = net.Listen("tcp", s.address)
@@ -58,27 +68,37 @@ func (s *TCPServer) Run() {
 			return
 		}
 
-		go handleConnections(conn)
+		go s.handleConnections(conn)
 	}
 
 }
 
-func handleConnections(conn net.Conn) {
+func (s *TCPServer) broadcast(msg string) {
+
+}
+
+// TODO: handle multiple connections at once...
+func (s *TCPServer) handleConnections(conn net.Conn) {
 	defer conn.Close()
 
-	buffer := make([]byte, 1024)
+	rw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	s.rw = rw
+
 	for {
 
-		n, err := conn.Read(buffer)
+		req, err := s.rw.ReadString('\n') // reads string until new line char
 		if err != nil {
-			fmt.Println("error handling connection: ", err)
+			s.rw.WriteString("FAILED TO READ INPUT")
+			s.rw.Flush()
 			return
 		}
 
-		s := buffer[:n]
-		//TODO: add some way clients can stop the freaking server :(
+		s.rw.WriteString(fmt.Sprintf("Request received: %s", req))
+		s.rw.Flush()
 
-		fmt.Printf("received: %s\n", s)
+		if req == "/quit\n" {
+			s.Stop()
+		}
 
 	}
 
